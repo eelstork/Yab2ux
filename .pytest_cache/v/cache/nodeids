@@ -1,0 +1,7 @@
+[
+  "tests/test_yab2ux.py::test_export_path",
+  "tests/test_yab2ux.py::test_export_fbx",
+  "tests/test_yab2ux.py::test_config_not_found",
+  "tests/test_yab2ux.py::test_load_single_config",
+  "tests/test_yab2ux.py::test_load_multi_config"
+]

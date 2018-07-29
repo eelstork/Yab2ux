@@ -1,0 +1,3 @@
+{
+  "tests/test_yab2ux.py::test_rooted_export_path": true
+}

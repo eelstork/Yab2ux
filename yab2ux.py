@@ -8,14 +8,15 @@ that which contains the config file) where fbx files are saved.
 The general idea is that you have an fbx file hierarchy in your Assets folder,
 that mirrors the blend file hierarchy that you organise your files with.
 TODO: when there is no config file, don't export
+TODO: when multiple configs are present, nodes down the hiearchy override
+ancestors
+TODO: pass parameters to fbx exporter
 """
 
 import json
 import os
-
-import bpy
-import bpy.ops
-from bpy.app.handlers import persistent
+from os import makedirs
+from os.path import abspath, basename, dirname, join, relpath
 
 CONFIG_FILENAME = "/fbx_config.json"
 KEY_PATH = 'path'
@@ -24,54 +25,75 @@ CURRENT_FILE = '//'
 
 bl_info = {"name": "Yab2ux", "category": "Import-Export"}
 
+# Functions that require Blender ----------------------------------------------
 
 def register():
     """Required by addon manager"""
-    bpy.app.handlers.save_post.append(save_fbx)
+    import bpy
+    bpy.app.handlers.save_post.append(export_fbx)
 
 
 def unregister():
     """Required by addon manager"""
-    if save_fbx in bpy.app.handlers.save_post:
-        bpy.app.handlers.save_post.remove(save_fbx)
+    import bpy
+    if export_fbx in bpy.app.handlers.save_post:
+        bpy.app.handlers.save_post.remove(export_fbx)
+
+try:
+    from bpy.app.handlers import persistent
+    @persistent
+    def export_fbx(arg):
+        import bpy
+        inpath = bpy.path.abspath(CURRENT_FILE)
+        config, root = load_config(inpath)
+        outpath = get_export_path(bpy.path.abspath(CURRENT_FILE), config, root)
+        do_export_fbx(outpath, config, root)    
+except ModuleNotFoundError:
+    pass
 
 
-@persistent
-def save_fbx(dummy):
-    path = get_path()
-    print('Save to ' + path)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    bpy.ops.export_scene.fbx(filepath=path)
+def bl_to_fbx(path, **kwargs):
+    import bpy.ops
+    bpy.ops.export_scene.fbx(filepath=path, **kwargs)
+
+# Other functions ------------------------------------------------------------
 
 
-def get_path():
-    config, root = load_config()
+def do_export_fbx(path, config, root):
+    makedirs(dirname(path), exist_ok=True)
+    params = config.copy()
+    params.pop('path')
+    bl_to_fbx(path, **params)
+
+
+def get_export_path(absolute_path, config, root):
     subpath = config[KEY_PATH]
-    abs = bpy.path.abspath(CURRENT_FILE)
-    branch = abs[len(root):]
-    print('Branch: '+branch)
-    if len(branch) > 0:
-        branch += '/'
-    name = bpy.path.basename(bpy.context.blend_data.filepath)[:-5] + FBX
-    outpath = root + subpath + '/' + branch + name
+    branch = relpath(dirname(absolute_path), root)
+    name = basename(absolute_path)[:-5] + FBX
+    outpath = join(root, subpath, branch, name)
     return outpath
 
 
-def load_config():
-    path = bpy.path.abspath(CURRENT_FILE)
+def load_config(path_to_blend_file):
+    path = path_to_blend_file
+    root = None
     config = None
-    while config is None:
-        try:
-            print("Check path:" + path)
-            with open(path + CONFIG_FILENAME) as file:
-                data = json.load(file)
-                config = data
-        except FileNotFoundError:
-            print("Not here")
-            new_path = os.path.dirname(path)
-            if new_path == path:
-                break;
-            path = new_path
-    if config is None:
-        print("Nothing found")
-    return config, path
+    while dirname(path) != path:
+        node = load_config_file(path)
+        if node is not None:
+            if config: node.update(config)
+            config=node
+            root = path
+        path = dirname(path)
+    return config, root
+
+
+def load_config_file(dir):
+    try:
+        with open(join(dir, CONFIG_FILENAME)) as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return None
+
+
+# EOF ---------------------------------
