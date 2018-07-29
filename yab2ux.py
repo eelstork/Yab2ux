@@ -18,7 +18,7 @@ import os
 from os import makedirs
 from os.path import abspath, basename, dirname, join, relpath
 
-CONFIG_FILENAME = "/fbx_config.json"
+CONFIG_FILENAME = "fbx_config.json"
 KEY_PATH = 'path'
 FBX = 'fbx'
 CURRENT_FILE = '//'
@@ -46,8 +46,12 @@ try:
         import bpy
         inpath = bpy.path.abspath(CURRENT_FILE)
         config, root = load_config(inpath)
-        outpath = get_export_path(bpy.path.abspath(CURRENT_FILE), config, root)
-        do_export_fbx(outpath, config, root)    
+        if config is None:
+            print("No fbx export config present; skip")
+            return
+        outpath = get_export_path(bpy.context.blend_data.filepath, config,
+                                  root)
+        do_export_fbx(outpath, config, root)
 except ModuleNotFoundError:
     pass
 
@@ -81,7 +85,9 @@ def load_config(path_to_blend_file):
     while dirname(path) != path:
         node = load_config_file(path)
         if node is not None:
-            if config: node.update(config)
+            if config:
+                node.update(config)
+                print("Use config @ " + path)
             config=node
             root = path
         path = dirname(path)
@@ -90,7 +96,8 @@ def load_config(path_to_blend_file):
 
 def load_config_file(dir):
     try:
-        with open(join(dir, CONFIG_FILENAME)) as file:
+        path = join(dir, CONFIG_FILENAME)
+        with open(path) as file:
             return json.load(file)
     except FileNotFoundError:
         return None
