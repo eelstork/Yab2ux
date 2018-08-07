@@ -1,6 +1,6 @@
 """
-This add-on exports an fbx copy whenever a blend file is saved.
-Starting from the containing folder, the add-on will look for a json file named
+This addon exports an fbx copy whenever a blend file is saved.
+Starting from the containing folder, the addon will look for a json file named
 'fbx_config.json' up the hierarchy. If no such file is found, no fbx file is
 generated.
 If the config file is found, the 'path' key points at a directory (relative to
@@ -47,7 +47,7 @@ try:
         inpath = bpy.path.abspath(CURRENT_FILE)
         config, root = load_config(inpath)
         if config is None:
-            print("No fbx export config present; skip")
+            print("No fbx export config; skip")
             return
         outpath = get_export_path(bpy.context.blend_data.filepath, config,
                                   root)
@@ -83,11 +83,14 @@ def load_config(path_to_blend_file):
     root = None
     config = None
     while dirname(path) != path:
+        if path.endswith('Assets'):
+            print("Skip files in 'Assets' directory")
+            return None, None
         node = load_config_file(path)
         if node is not None:
             if config:
                 node.update(config)
-                print("Use config @ " + path)
+                print("Using config @ " + path)
             config=node
             root = path
         path = dirname(path)

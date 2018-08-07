@@ -41,6 +41,15 @@ def test_load_multi_config(path):
     with patch('yab2ux.load_config_file', mock_load_config_file_multi):
         assert load_config(path) == (COMPOSITE_CONFIG, '/project')
 
+
+def test_skip_assets_dir():
+    path = '/project/Assets/Media/Models/Foo.blend'
+    with patch('yab2ux.load_config_file', mock_load_config_file):
+        assert load_config(path) == (None, None)
+    path = '/project/Media/Models/Foo.blend'
+    with patch('yab2ux.load_config_file', mock_load_config_file):
+        assert load_config(path) == (CONFIG, '/project')
+
 # -----------------------------------------------------------------------------
 
 import pytest
